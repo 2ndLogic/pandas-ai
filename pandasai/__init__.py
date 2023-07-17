@@ -368,6 +368,10 @@ class PandasAI(Shortcuts):
                         num_rows=data_frame.shape[0],
                         num_columns=data_frame.shape[1],
                     )
+                    # print('generate_code_instruction')
+                    # print(generate_code_instruction)
+                    # print('**** end of generate_code_instruction')
+
                     code = self._llm.generate_code(
                         generate_code_instruction,
                         prompt,
@@ -381,14 +385,14 @@ class PandasAI(Shortcuts):
                     }
 
                 self.last_code_generated = code
-                self.log(
-                    f"""
-                        Code generated:
-                        ```
-                        {code}
-                        ```
-                    """
-                )
+                # self.log(
+                #     f"""
+                #         Code generated:
+                #         ```
+                #         {code}
+                #         ```
+                #     """
+                # )
 
                 if self._enable_cache and self._cache:
                     self._cache.set(prompt, code)
@@ -399,6 +403,14 @@ class PandasAI(Shortcuts):
             for middleware in self._middlewares:
                 code = middleware(code)
 
+            self.log(
+                f"""
+                    ************************************Code generated:
+                    ```
+                    {code}
+                    ```
+                """
+            )
             answer = self.run_code(
                 code,
                 data_frame,
@@ -614,6 +626,16 @@ class PandasAI(Shortcuts):
 
         return self._llm.generate_code(error_correcting_instruction, "")
 
+    def write_output_to_file(self, filename, output):
+        try:
+            text_file = open(filename, "w")
+            n = text_file.write(output)
+            text_file.close()
+            return True
+        except Exception as e:
+            return False
+
+
     def run_code(
         self,
         code: str,
@@ -638,10 +660,24 @@ class PandasAI(Shortcuts):
         multiple: bool = isinstance(data_frame, list)
 
         # Add save chart code
-        if self._save_charts:
-            code = add_save_chart(
-                code, self._prompt_id, self._save_charts_path, not self._verbose
-            )
+        #was_saved indicates if plotly code to save worked or if we need to save it manually
+        was_saved = False
+        # print('Code before replace fig.show')
+        # print(code)
+        base_folder = 'dashboard/'
+        unique_filename = 'static/dashboard/reports/' + str(uuid.uuid4()) + ".html"
+        if "fig.show()" in code:
+            was_saved = True
+            code = code.replace("fig.show()", f"from plotly.offline import plot\nplot(fig,show_link = True, filename = '{base_folder+unique_filename}')")
+        elif "table.show()" in code:
+            was_saved = True
+            code = code.replace("table.show()", f"from plotly.offline import plot\nplot(table,show_link = True, filename = '{base_folder+unique_filename}')")
+
+        # if self._save_charts:
+        #     code, saved_flag = save_chart(self._save_charts_path)
+        #     # code = add_save_chart(
+        #     #     code, self._prompt_id, self._save_charts_path, not self._verbose
+        #     # )
 
         # Get the code to run removing unsafe imports and df overwrites
         code_to_run = self._clean_code(code)
@@ -680,9 +716,19 @@ Code running:
 
                     code_to_run = self._retry_run_code(code, e, multiple)
 
+
+        if was_saved:
+            return unique_filename
+
+
         captured_output = output.getvalue().strip()
-        if code.count("print(") > 1:
-            return captured_output
+        #print(captured_output)
+        if code_to_run.count("print(") > 0:
+            if not was_saved and self.write_output_to_file(base_folder+unique_filename, captured_output):
+                was_saved = True
+                return unique_filename
+            else:
+                return captured_output
 
         # Evaluate the last line and return its value or the captured output
         # We do this because we want to return the right value and the right
@@ -704,8 +750,18 @@ Code running:
             if isinstance(result, tuple):
                 result = " ".join([str(element) for element in result])
 
-            return result
+            if not was_saved and self.write_output_to_file(base_folder+unique_filename, result):
+                was_saved = True
+                return unique_filename
+            else:
+                return result
+
         except Exception:
+            if not was_saved and self.write_output_to_file(base_folder+unique_filename, captured_output):
+                return unique_filename
+            else:
+                return captured_output
+
             return captured_output
 
     def log(self, message: str):

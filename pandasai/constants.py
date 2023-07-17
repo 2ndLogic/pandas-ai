@@ -80,4 +80,5 @@ WHITELISTED_LIBRARIES = [
     "base64",
     "scipy",
     "streamlit",
+    "plotly",
 ]

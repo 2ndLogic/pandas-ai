@@ -24,7 +24,8 @@ You are provided with a pandas dataframe (df) with {num_rows} rows and {num_colu
 This is the metadata of the dataframe:
 {df_head}.
 
-When asked about the data, your response should include a python code that describes the dataframe `df`.
+When asked about the data, your response should include python code that describes the dataframe `df`. 
+Use the plotly python library for creating charts, graphs, tables and visualizing data. For tables use plotly graph_objects. 
 Using the provided dataframe, df, return the python code to get the answer to the following question:
 """  # noqa: E501
 

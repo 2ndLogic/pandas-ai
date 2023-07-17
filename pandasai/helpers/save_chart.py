@@ -76,41 +76,48 @@ def add_save_chart(
         # define chart save directory
         charts_root_dir = dirname(dirname(dirname(__file__)))
 
-    chart_save_dir = os.path.join(charts_root_dir, "exports", "charts", folder_name)
+    chart_save_dir = os.path.join(charts_root_dir, "reports", "created")
 
-    tree = ast.parse(code)
+    # tree = ast.parse(code)
 
-    # count number of plt.show() calls
-    show_count = sum(
-        compare_ast(node, ast.parse("plt.show()").body[0], ignore_args=True)
-        for node in ast.walk(tree)
-    )
+    # # count number of plt.show() calls
+    # show_count = sum(
+    #     compare_ast(node, ast.parse("plt.show()").body[0], ignore_args=True)
+    #     for node in ast.walk(tree)
+    # )
 
-    # if there are no plt.show() calls, return the original code
-    if show_count == 0:
-        return code
+    # # if there are no plt.show() calls, return the original code
+    # if show_count == 0:
+    #     return code
 
     if not os.path.exists(chart_save_dir):
         os.makedirs(chart_save_dir)
 
-    # iterate through the AST and add plt.savefig() calls before plt.show() calls
-    counter = ord("a")
-    new_body = []
-    for node in tree.body:
-        if compare_ast(node, ast.parse("plt.show()").body[0], ignore_args=True):
-            filename = "chart"
-            if show_count > 1:
-                filename += f"_{chr(counter)}"
-                counter += 1
+    # # iterate through the AST and add plt.savefig() calls before plt.show() calls
+    # counter = ord("a")
+    # new_body = []
+    # for node in tree.body:
+    #     if compare_ast(node, ast.parse("plt.show()").body[0], ignore_args=True):
+    #         filename = "chart"
+    #         if show_count > 1:
+    #             filename += f"_{chr(counter)}"
+    #             counter += 1
 
-            chart_save_path = os.path.join(chart_save_dir, f"{filename}.png")
-            new_body.append(ast.parse(f"plt.savefig(r'{chart_save_path}')"))
-        new_body.append(node)
+    #         chart_save_path = os.path.join(chart_save_dir, f"{filename}.png")
+    #         new_body.append(ast.parse(f"plt.savefig(r'{chart_save_path}')"))
+    #     elif compare_ast(node, ast.parse("fig.show()").body[0], ignore_args=True):
 
-    chart_save_msg = f"Charts saving to: {chart_save_dir}"
+
+    #unique_filename = 'savedchart.html'
+    code.replace("fig.show()", f"from plotly.offline import plot\nplot(fig,show_link = True, filename = 'reports/created/{save_charts_path}')")
+        
+        # new_body.append(node)
+
+    chart_save_msg = f"Charts saving to: {save_charts_path}"
     if print_save_dir:
         print(chart_save_msg)
     logging.info(chart_save_msg)
 
-    new_tree = ast.Module(body=new_body)
-    return astor.to_source(new_tree, pretty_source=lambda x: "".join(x)).strip()
+    #new_tree = ast.Module(body=new_body)
+    #return astor.to_source(new_tree).strip()
+    return code
