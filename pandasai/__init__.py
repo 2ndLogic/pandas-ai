@@ -355,10 +355,15 @@ class PandasAI(Shortcuts):
                     }
 
                 else:
-                    df_head = data_frame.head(rows_to_display)
-                    if anonymize_df:
-                        df_head = anonymize_dataframe_head(df_head)
-                    df_head = df_head.to_csv(index=False)
+                    dfn = data_frame.convert_dtypes()
+                    # print(dfn.info())
+                    # print(dfn.infer_objects().dtypes)
+                    # print('***************************************************************')
+
+                    df_head = dfn.infer_objects().dtypes
+                    # if anonymize_df:
+                    #     df_head = anonymize_dataframe_head(df_head)
+                    # df_head = df_head.to_csv(index=False)
 
                     generate_code_instruction = self._non_default_prompts.get(
                         "generate_python_code", GeneratePythonCodePrompt
@@ -664,14 +669,24 @@ class PandasAI(Shortcuts):
         was_saved = False
         # print('Code before replace fig.show')
         # print(code)
-        base_folder = 'dashboard/'
-        unique_filename = 'static/dashboard/reports/' + str(uuid.uuid4()) + ".html"
+        unique_filename = self._save_charts_path + str(uuid.uuid4()) + ".html"
+        # print(base_folder+unique_filename)
         if "fig.show()" in code:
             was_saved = True
-            code = code.replace("fig.show()", f"from plotly.offline import plot\nplot(fig,show_link = True, filename = '{base_folder+unique_filename}')")
+            code = code.replace("fig.show()", f"from plotly.offline import plot\nplot(fig,show_link = True, filename = '{unique_filename}')")
         elif "table.show()" in code:
             was_saved = True
-            code = code.replace("table.show()", f"from plotly.offline import plot\nplot(table,show_link = True, filename = '{base_folder+unique_filename}')")
+            code = code.replace("table.show()", f"from plotly.offline import plot\nplot(table,show_link = True, filename = '{unique_filename}')")
+        # elif "print(" in code:
+        #     was_saved = True
+        #     s = re.search('print((.*))', code)
+        #     if s:
+        #         data_returned = s.group(1)
+        #         print('data returned:', data_returned)
+        #         print('type: ', type(data_returned))
+        #         if isinstance(data_returned, pd.DataFrame):
+        #             print('the data returned is data frame')
+
 
         # if self._save_charts:
         #     code, saved_flag = save_chart(self._save_charts_path)
@@ -700,6 +715,15 @@ Code running:
             environment["df"] = data_frame
 
         # Redirect standard output to a StringIO buffer
+        
+        # print('GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGgg')
+        # result = eval(code_to_run, environment)
+        # print(result)
+        # print('HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH')
+
+
+
+
         with redirect_stdout(io.StringIO()) as output:
             count = 0
             while count < self._max_retries:
@@ -724,7 +748,7 @@ Code running:
         captured_output = output.getvalue().strip()
         #print(captured_output)
         if code_to_run.count("print(") > 0:
-            if not was_saved and self.write_output_to_file(base_folder+unique_filename, captured_output):
+            if not was_saved and self.write_output_to_file(unique_filename, captured_output):
                 was_saved = True
                 return unique_filename
             else:
@@ -750,14 +774,14 @@ Code running:
             if isinstance(result, tuple):
                 result = " ".join([str(element) for element in result])
 
-            if not was_saved and self.write_output_to_file(base_folder+unique_filename, result):
+            if not was_saved and self.write_output_to_file(unique_filename, result):
                 was_saved = True
                 return unique_filename
             else:
                 return result
 
         except Exception:
-            if not was_saved and self.write_output_to_file(base_folder+unique_filename, captured_output):
+            if not was_saved and self.write_output_to_file(unique_filename, captured_output):
                 return unique_filename
             else:
                 return captured_output
